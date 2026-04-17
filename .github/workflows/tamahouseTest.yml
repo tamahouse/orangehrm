@@ -1,0 +1,110 @@
+name: Build, Push & Test OrangeHRM
+
+on:
+    push:
+        branches: ["master"]
+        
+        
+jobs:
+    e2e-test:
+        runs-on: ubuntu-latest
+        
+        strategy:
+        matrix:
+            browser: [chrome, firefox]
+        
+        steps:
+            - name: Checkout orangehrm code
+              uses: actions/checkout@v4
+              
+            - name: Install jp
+              run: sudo apt-get install -y jp
+
+              
+            - name: Find latest version on Docker Hub
+               run: |
+               LATEST = $(curl -s https://registry.hub.docker.com/v2/repositories/tamahouse/orangehrm/tags?page_size=100
+               | jq -r '.results[].name'
+               | grep -E '^[0-9]+.[0-9]+.[0-9]+$'
+               | sort -V
+               | tail -n 1)
+
+               if[ -z "$LATEST"]; then
+               LATEST="0.0.0"
+               fi
+               
+               NEW_TAG = $(echo $LATEST|awk -F. '{print$1"."$2"."$3+1}')
+               echo "NEW_TAG=$NEW_TAG">>$GITHUB_ENV
+               
+            - name: Build image
+              run: sudo docker build -t orangehrm:${{ env.NEW_TAG}}
+              
+            - name: Smoke test container healthz
+              run: curl -X POST http://localhost:8080/api/login
+              
+            - name: Cleanup
+              if: always()
+              run: sudo docker rm -f orangehrm:${{ env.NEW_TAG}}
+              
+            - name: Tag images with NEW_TAG
+              run: sudo docker tag tamahouse/orangehrm:${{env.NEW_TAG}}
+              
+            - name: Push image with NEW_TAG
+              run: sudo docker push tamahouse/orangehrm:${{env.NEW_TAG}}
+            
+            - name: Pull image with NEW_TAG
+              run: sudo docker pull tamahouse/orangehrm:${{env.NEW_TAG}}
+              
+            - name: Stop currency OrangeHRM
+              run: sudo docker stop OrangeHRM
+              
+            - name: Remove OrangeHRM
+              run: sudo docker rm OrangeHRM
+              
+            - name: Run image mới
+              run: sudo docker run -d --name orangehrm -p 8080:80 tamahouse/orangehrm:${{env.NEW_TAG}}
+              
+            
+            - name: Setup Java
+              uses: actions/setup-java@v4
+              with:
+                distribution: 'temurin'
+                java-version: '17'
+                
+            - name: Get code auto từ repo
+              uses: actions/checkout@v4
+              with:
+                repository: tamahouse/orangehrm-demo-automation
+                token: ${{secrets.GITHUB_TOKEN}}
+                
+            - name: Start Selenium
+                run: sudo docker run -d -p 4444:4444 --name selenium selenium/standalone-${{ matrix.browser }}
+                
+            - name: Run Test
+              run: mvn clean test -Dbrowser=${{matrix.browser}} -DbaseUrl=https://chaseqa.duckdns.org -DremoteUrl=http://localhost:4444
+            
+            - name: Generate Allure report
+                if: always()
+                run: mvn allure:report
+                
+             - name: Upload Allure report
+                if: always()
+                uses: actions/upload-artifact@v4
+                with:
+                name: allure-report
+                path: target/site/allure-maven-plugin/
+                
+                      # 🧹 Cleanup
+             - name: Stop Selenium
+                if: always()
+                run: docker rm -f selenium
+            
+            - name: Tag latest
+              run: sudo docker tag tamahouse/orangehrm:${{env.NEW_TAG}} tamahouse/orangehrm:latest
+              
+            - name: Tag images with latest
+              run: sudo docker push tamahouse/orangehrm:latest
+              
+               
+            
+        
