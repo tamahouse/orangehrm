@@ -82,10 +82,12 @@ jobs:
               run: sudo docker run -d -p 4444:4444 --name selenium selenium/standalone-${{ matrix.browser }}
                 
             - name: Run Test
+              working-directory: automation
               run: mvn clean test -Dbrowser=${{ matrix.browser }} -DbaseUrl=https://chaseqa.duckdns.org -DremoteUrl=http://localhost:4444
             
             - name: Generate Allure report
               if: always()
+              working-directory: automation
               run: mvn io.qameta.allure:allure-maven:report
                 
             - name: Upload Allure report
