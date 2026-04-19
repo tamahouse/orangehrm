@@ -79,10 +79,10 @@ jobs:
                 token: ${{secrets.GITHUB_TOKEN}}
                 
             - name: Start Selenium
-                run: sudo docker run -d -p 4444:4444 --name selenium selenium/standalone-${{ matrix.browser }}
+              run: sudo docker run -d -p 4444:4444 --name selenium selenium/standalone-${{ matrix.browser }}
                 
             - name: Run Test
-              run: mvn clean test -Dbrowser=${{matrix.browser}} -DbaseUrl=https://chaseqa.duckdns.org -DremoteUrl=http://localhost:4444
+              run: mvn clean test -Dbrowser=${{ matrix.browser }} -DbaseUrl=https://chaseqa.duckdns.org -DremoteUrl=http://localhost:4444
             
             - name: Generate Allure report
                 if: always()
