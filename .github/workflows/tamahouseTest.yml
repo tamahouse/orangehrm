@@ -23,18 +23,18 @@ jobs:
               
             - name: Find latest version on Docker Hub
               run: |
-              LATEST=$(curl -s https://registry.hub.docker.com/v2/repositories/tamahouse/orangehrm/tags?page_size=100
-              | jq -r '.results[].name'
-              | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$'
-              | sort -V
-              | tail -n 1)
+                LATEST=$(curl -s https://registry.hub.docker.com/v2/repositories/tamahouse/orangehrm/tags?page_size=100
+                | jq -r '.results[].name'
+                | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$'
+                | sort -V
+                | tail -n 1)
 
-              if [ -z "$LATEST" ]; then
-              LATEST="0.0.0"
-              fi
+                if [ -z "$LATEST" ]; then
+                LATEST="0.0.0"
+                fi
                
-              NEW_TAG=$(echo $LATEST|awk -F. '{print$1"."$2"."($3+1)}')
-              echo "NEW_TAG=$NEW_TAG">>$GITHUB_ENV
+                NEW_TAG=$(echo $LATEST|awk -F. '{print$1"."$2"."($3+1)}')
+                echo "NEW_TAG=$NEW_TAG">>$GITHUB_ENV
                
             - name: Build image
               run: sudo docker build -t orangehrm:${{ env.NEW_TAG}} .
