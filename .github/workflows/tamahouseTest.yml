@@ -85,20 +85,20 @@ jobs:
               run: mvn clean test -Dbrowser=${{ matrix.browser }} -DbaseUrl=https://chaseqa.duckdns.org -DremoteUrl=http://localhost:4444
             
             - name: Generate Allure report
-                if: always()
-                run: mvn allure:report
+              if: always()
+              run: mvn allure:report
                 
-             - name: Upload Allure report
-                if: always()
-                uses: actions/upload-artifact@v4
-                with:
+            - name: Upload Allure report
+              if: always()
+              uses: actions/upload-artifact@v4
+              with:
                 name: allure-report
                 path: target/site/allure-maven-plugin/
                 
                       # 🧹 Cleanup
-             - name: Stop Selenium
-                if: always()
-                run: docker rm -f selenium
+            - name: Stop Selenium
+              if: always()
+              run: docker rm -f selenium
             
             - name: Tag latest
               run: sudo docker tag tamahouse/orangehrm:${{env.NEW_TAG}} tamahouse/orangehrm:latest
