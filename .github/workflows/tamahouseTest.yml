@@ -37,10 +37,10 @@ jobs:
                 echo "NEW_TAG=$NEW_TAG">>$GITHUB_ENV
                
             - name: Build image
-              run: sudo docker build -t orangehrm:${{ env.NEW_TAG}} .
+              run: sudo docker build -t orangehrm:${{ env.NEW_TAG }} .
               
             - name: Run image
-              run: sudo docker run -d orangehrm:${{evn.NEW_TAG}}
+              run: sudo docker run -d orangehrm:${{ evn.NEW_TAG }}
               
             - name: Smoke test container healthz
               run: curl -X POST http://localhost:8080/api/login
