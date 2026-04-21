@@ -43,7 +43,7 @@ jobs:
               run: sudo docker run -d orangehrm:${{ env.NEW_TAG }}
               
             - name: Smoke test container healthz
-              run: curl -X POST http://localhost:8080/api/login
+              run: curl -X GET http://localhost:8080
               
             - name: Cleanup
               if: always()
@@ -83,7 +83,7 @@ jobs:
                 
             - name: Run Test
               working-directory: automation
-              run: mvn clean test -Dbrowser=${{ matrix.browser }} -DbaseUrl=https://chaseqa.duckdns.org -DremoteUrl=http://localhost:4444
+              run: mvn clean test -Pregression -Devn=staging -Dbrowser=${{ matrix.browser }} -DbaseUrl=https://chaseqa.duckdns.org -DremoteUrl=http://localhost:4444
             
             - name: Generate Allure report
               if: always()
