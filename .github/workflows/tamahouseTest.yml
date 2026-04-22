@@ -66,7 +66,7 @@ jobs:
                 password: ${{secrets.DOCKER_PAT}}
                             
             - name: Push image with NEW_TAG
-              run: sudo docker push tamahouse/orangehrm:${{ env.NEW_TAG }}
+              run: docker push tamahouse/orangehrm:${{ env.NEW_TAG }}
               
             - name: Stop currency OrangeHRM
               run: sudo docker stop OrangeHRM
