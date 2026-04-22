@@ -68,15 +68,25 @@ jobs:
             - name: Push image with NEW_TAG
               run: docker push tamahouse/orangehrm:${{ env.NEW_TAG }}
               
-            - name: Stop currency OrangeHRM
-              run: sudo docker stop OrangeHRM
+            - name: Stop container with label orangehrm
+              run: sudo docker ps -q --filter "label=app=orangehrm" | xargs -r docker stop
               
             - name: Remove OrangeHRM
-              run: sudo docker rm OrangeHRM
+              run: sudo docker ps -aq --filter "label=app=orangehrm" | xargs -r docker rm
               
-            - name: Run image mới
-              run: sudo docker run -d --name orangehrm -p 8080:80 tamahouse/orangehrm:${{ env.NEW_TAG }}
-              
+            - name: Deploy to VPS
+              uses: appleboy/ssh-action@v1.0.3
+              with:
+                host: ${{ secrets.VPS_HOST }}
+                username: ${{ secrets.VPS_USER }}
+                key: ${{ secrets.VPS_SSH_KEY }}
+                script: |
+                    cd orangehrm
+                    export TAG=${{ env.NEW_TAG }}
+                    echo "Deploy version: $TAG"
+                    docker compose pull orangehrm
+                    docker compose up -d orangehrm
+                    docker image prune -f
             
             - name: Setup Java
               uses: actions/setup-java@v4
