@@ -49,6 +49,9 @@ jobs:
             - name: Tag images with NEW_TAG
               run: sudo docker tag orangehrm:${{ env.NEW_TAG}} tamahouse/orangehrm:${{env.NEW_TAG}}
               
+            - name: Login Docker Hub
+              run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
+              
             - name: Push image with NEW_TAG
               run: sudo docker push tamahouse/orangehrm:${{env.NEW_TAG}}
               
