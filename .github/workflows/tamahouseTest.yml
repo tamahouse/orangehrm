@@ -47,7 +47,7 @@ jobs:
               run: sudo docker rm -f orangehrm:${{ env.NEW_TAG}}
               
             - name: Tag images with NEW_TAG
-              run: sudo docker tag tamahouse/orangehrm:${{env.NEW_TAG}}
+              run: sudo docker tag orangehrm:${{ env.NEW_TAG}} tamahouse/orangehrm:${{env.NEW_TAG}}
               
             - name: Push image with NEW_TAG
               run: sudo docker push tamahouse/orangehrm:${{env.NEW_TAG}}
