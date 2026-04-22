@@ -74,19 +74,13 @@ jobs:
             - name: Remove OrangeHRM
               run: sudo docker ps -aq --filter "label=app=orangehrm" | xargs -r docker rm
               
-            - name: Deploy to VPS
-              uses: appleboy/ssh-action@v1.0.3
-              with:
-                host: ${{ secrets.VPS_HOST }}
-                username: ${{ secrets.VPS_USER }}
-                key: ${{ secrets.VPS_SSH_KEY }}
-                script: |
-                    cd orangehrm
-                    export TAG=${{ env.NEW_TAG }}
-                    echo "Deploy version: $TAG"
-                    docker compose pull orangehrm
-                    docker compose up -d orangehrm
-                    docker image prune -f
+            - name: Deploy
+              run: |
+                cd orangehrm-traefik
+                export TAG=${{ env.NEW_TAG }}
+                echo "Deploy version: $TAG"
+                docker compose pull
+                docker compose up -d
             
             - name: Setup Java
               uses: actions/setup-java@v4
