@@ -116,18 +116,26 @@ jobs:
               working-directory: automation
               run: mvn clean test -Pregression -Devn=staging -Dbrowser=${{ matrix.browser }} -DbaseUrl=https://chaseqa.duckdns.org -DremoteUrl=http://localhost:4444
             
-            - name: Generate Allure report
+            - name: Generate Allure Report
               if: always()
-              run: cd automation && mvn io.qameta.allure:allure-maven:report
+              run: |
+                TAG=${{ env.NEW_TAG }}
+                cd automation
+                allure generate allure-results \
+                -o /opt/allure-reports/orangehrm-${TAG} \
+                --clean
                 
-            - name: Upload Allure report
-              if: always()
-              uses: actions/upload-artifact@v4
-              with:
-                name: allure-report
-                path: automation/target/site/allure-maven-plugin/
+                # update latest
+                rm -rf /opt/allure-reports/latest
+                cp -r /opt/allure-reports/orangehrm-${TAG} /opt/allure-reports/latest
                 
-                      # 🧹 Cleanup
+            - name: Show Allure URL
+              run: echo "https://chaseqa.duckdns.org/allure/orangehrm-${{ env.NEW_TAG }}"
+                
+            - name: Cleanup old reports
+              run: |
+                ls -dt /opt/allure-reports/orangehrm-* | tail -n +11 | xargs rm -rf
+                
             - name: Stop Selenium
               if: always()
               run: docker rm -f selenium
