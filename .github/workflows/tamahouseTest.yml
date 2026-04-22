@@ -74,7 +74,7 @@ jobs:
             - name: Remove OrangeHRM
               run: sudo docker ps -aq --filter "label=app=orangehrm" | xargs -r docker rm
               
-            - name: Get code auto từ repo
+            - name: Get traefik từ repo
               uses: actions/checkout@v4
               with:
                 repository: tamahouse/orangehrm-traefik
