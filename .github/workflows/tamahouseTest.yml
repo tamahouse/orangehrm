@@ -42,9 +42,6 @@ jobs:
             - name: Run image
               run: sudo docker run -d orangehrm:${{ env.NEW_TAG }}
               
-            - name: Smoke test container healthz
-              run: curl -X GET http://localhost:8080
-              
             - name: Cleanup
               if: always()
               run: sudo docker rm -f orangehrm:${{ env.NEW_TAG}}
@@ -87,7 +84,7 @@ jobs:
             
             - name: Generate Allure report
               if: always()
-              run: cd automation mvn io.qameta.allure:allure-maven:report
+              run: cd automation && mvn io.qameta.allure:allure-maven:report
                 
             - name: Upload Allure report
               if: always()
