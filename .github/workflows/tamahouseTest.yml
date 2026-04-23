@@ -114,14 +114,15 @@ jobs:
                 
             - name: Run Test
               working-directory: automation
-              run: mvn clean test -Pregression -Devn=staging -Dbrowser=${{ matrix.browser }} -DbaseUrl=https://chaseqa.duckdns.org -DremoteUrl=http://localhost:4444
+              run: mvn clean test
+             # run: mvn clean test -Pregression -Devn=staging -Dbrowser=${{ matrix.browser }} -DbaseUrl=https://chaseqa.duckdns.org -DremoteUrl=http://localhost:4444
             
-            - name: Install Allure CLI
-              run: |
-                wget https://github.com/allure-framework/allure2/releases/download/2.27.0/allure-2.27.0.tgz
-                tar -zxvf allure-2.27.0.tgz
-                sudo mv allure-2.27.0 /opt/allure
-                sudo ln -s /opt/allure/bin/allure /usr/bin/allure
+        #    - name: Install Allure CLI
+        #      run: |
+        #        wget https://github.com/allure-framework/allure2/releases/download/2.27.0/allure-2.27.0.tgz
+         #       tar -zxvf allure-2.27.0.tgz
+         #       sudo mv allure-2.27.0 /opt/allure
+         #       sudo ln -s /opt/allure/bin/allure /usr/bin/allure
             
             - name: Generate Allure Report
               if: always()
