@@ -118,6 +118,7 @@ jobs:
              # run: mvn clean test -Pregression -Devn=staging -Dbrowser=${{ matrix.browser }} -DbaseUrl=https://chaseqa.duckdns.org -DremoteUrl=http://localhost:4444
          
             - name: Copy allure results to VPS
+              if: always()
               uses: appleboy/scp-action@v0.1.7
               with:
                 host: ${{ secrets.SSH_HOST }}
