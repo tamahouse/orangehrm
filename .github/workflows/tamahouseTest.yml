@@ -100,6 +100,7 @@ jobs:
         run: mvn clean test -Pregression -Devn=staging -Dbrowser=${{ matrix.browser }} -DbaseUrl=https://chaseqa.duckdns.org -DremoteUrl=http://localhost:4444
 
       - name: Debug allure folder
+        if: always()
         run: |
             echo "Check folder:"
             ls -la
