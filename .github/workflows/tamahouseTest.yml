@@ -21,53 +21,40 @@ jobs:
               run: sudo apt-get update && sudo apt-get install -y jq
 
               
-            - name: Find latest version on Docker Hub
-              run: | 
-                LATEST=$(curl -s https://registry.hub.docker.com/v2/repositories/tamahouse/orangehrm/tags?page_size=100 \
-                | jq -r '.results[].name' \
-                | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' \
-                | sort -V \
-                | tail -n 1) 
-
-                if [ -z "$LATEST" ]; then
-                    LATEST="0.0.0"
-                fi
-               
-                NEW_TAG=$(echo $LATEST | awk -F. '{print$1"."$2"."($3+1)}')
-                echo "NEW_TAG=$NEW_TAG" >> $GITHUB_ENV
-               
-            - name: Check if image exists
-              id: check_image
+            - name: Get latest version
+              id: get_version
               run: |
-                if sudo docker image inspect orangehrm:${{ env.NEW_TAG }} > /dev/null 2>&1; then
-                echo "exists=true" >> $GITHUB_OUTPUT
-                else
-                echo "exists=false" >> $GITHUB_OUTPUT
+                git fetch --tags
+                VERSION=$(git tag | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -n1)
+                if [ -z "$VERSION" ]; then
+                VERSION="v1.0.0"
                 fi
+                echo "CURRENT_VERSION=$VERSION" >> $GITHUB_ENV
+                
+            - name: Bump version
+              if: success()
+              run: |
+                VERSION=${CURRENT_VERSION#v}
+                MAJOR=$(echo $VERSION | cut -d. -f1)
+                MINOR=$(echo $VERSION | cut -d. -f2)
+                PATCH=$(echo $VERSION | cut -d. -f3)
+                PATCH=$((PATCH+1))
+                NEW_VERSION="$MAJOR.$MINOR.$PATCH"
+                echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
+                
+            - name: Set temp tag
+              run: echo "TEMP_TAG=temp-${GITHUB_SHA}" >> $GITHUB_ENV
+              
+            - name: Pull cache (stable)
+              run: docker pull my-app:stable || true
 
-            - name: Build image
-              if: steps.check_image.outputs.exists == 'false'
-              run: sudo docker build -t orangehrm:${{ env.NEW_TAG }} .
-              
-            - name: Run image
-              run: sudo docker run -d orangehrm:${{ env.NEW_TAG }}
-              
-            - name: Cleanup
-              if: always()
-              run: sudo docker rm -f orangehrm:${{ env.NEW_TAG }}
-              
-            - name: Tag images with NEW_TAG
-              run: sudo docker tag orangehrm:${{ env.NEW_TAG }} tamahouse/orangehrm:${{ env.NEW_TAG }}
-              
-            - name: Login Docker Hub
-              uses: docker/login-action@v3
-              with:
-                username: ${{secrets.DOCKER_USERNAME}}
-                password: ${{secrets.DOCKER_PAT}}
-                            
-            - name: Push image with NEW_TAG
-              run: docker push tamahouse/orangehrm:${{ env.NEW_TAG }}
-              
+            - name: Build & Push temp (with cache)
+              run: |
+                docker build \
+                --cache-from=my-app:stable \
+                -t my-app:$TEMP_TAG .
+                docker push my-app:$TEMP_TAG
+            
             - name: Stop container with label orangehrm
               run: sudo docker ps -q --filter "label=app=orangehrm" | xargs -r docker stop
               
@@ -84,9 +71,8 @@ jobs:
             - name: Deploy
               run: |
                 cd orangehrm-traefik
-                export TAG=${{ env.NEW_TAG }}
+                export TAG=$TEMP_TAG
                 echo "Deploy version: $TAG"
-                docker compose pull
                 docker compose up -d
             
             - name: Setup Java
@@ -114,8 +100,8 @@ jobs:
                 
             - name: Run Test
               working-directory: automation
-              run: mvn clean test
-             # run: mvn clean test -Pregression -Devn=staging -Dbrowser=${{ matrix.browser }} -DbaseUrl=https://chaseqa.duckdns.org -DremoteUrl=http://localhost:4444
+             # run: mvn clean test
+             run: mvn clean test -Pregression -Devn=staging -Dbrowser=${{ matrix.browser }} -DbaseUrl=https://chaseqa.duckdns.org -DremoteUrl=http://localhost:4444
          
             - name: Copy allure results to VPS
               if: always()
@@ -125,7 +111,7 @@ jobs:
                 username: ${{ secrets.SSH_USER }}
                 key: ${{ secrets.SSH_KEY }}
                 source: "automation/allure-results"
-                target: "/opt/allure-results/${{ github.run_number }}"
+                target: "/opt/allure-results/${{ env.TEMP_TAG }}"
                 
             - name: Generate Allure Report on VPS
               uses: appleboy/ssh-action@v1.0.3
@@ -134,11 +120,43 @@ jobs:
                 username: ${{ secrets.SSH_USER }}
                 key: ${{ secrets.SSH_KEY }}
                 script: |
-                    TAG=${{ github.run_number }}
+                    TAG=${{ env.TEMP_TAG }}
                     allure generate /opt/allure-results/$TAG \
                     -o /opt/allure-reports/build-$TAG --clean
                     rm -rf /opt/allure-reports/latest
                     cp -r /opt/allure-reports/build-$TAG /opt/allure-reports/latest
+                    
+            - name: Login Docker Hub
+              if: success()
+              uses: docker/login-action@v3
+              with:
+                username: ${{secrets.DOCKER_USERNAME}}
+                password: ${{secrets.DOCKER_PAT}}
+                    
+            - name: Promote image
+              if: success()
+              run: |
+                docker tag my-app:$TEMP_TAG my-app:$NEW_VERSION
+                docker push my-app:$NEW_VERSION
+                docker push my-app:stable
+                
+            - name: Create git tag
+              if: success()
+              run: |
+                git config user.name "tamahouse"
+                git config user.email "tamahosue@github.com"
+                git tag v$NEW_VERSION
+                git push origin v$NEW_VERSION
+                    
+            
+            - name: Rollback
+              if: failure()
+              run: |
+                cd orangehrm-traefik
+                export TAG=stable
+                docker compose pull
+                docker compose up -d
+               
                 
             - name: Show Allure URL
               run: echo "https://chaseqa.duckdns.org/allure/orangehrm-${{ env.NEW_TAG }}"
@@ -151,11 +169,7 @@ jobs:
               if: always()
               run: docker rm -f selenium
             
-            - name: Tag latest
-              run: sudo docker tag tamahouse/orangehrm:${{env.NEW_TAG}} tamahouse/orangehrm:latest
-              
-            - name: Tag images with latest
-              run: sudo docker push tamahouse/orangehrm:latest
+
               
                
             
