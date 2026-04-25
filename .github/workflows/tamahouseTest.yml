@@ -103,9 +103,9 @@ jobs:
         if: always()
         uses: appleboy/scp-action@v0.1.7
         with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_KEY }}
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
           source: "automation/allure-results"
           target: "/opt/allure-results/${{ env.TEMP_TAG }}"
 
@@ -114,8 +114,8 @@ jobs:
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_KEY }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
           script: |
             TAG=${{ env.TEMP_TAG }}
             allure generate /opt/allure-results/$TAG -o /opt/allure-reports/build-$TAG --clean
