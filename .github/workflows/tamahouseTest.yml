@@ -12,7 +12,8 @@ jobs:
         strategy:
             matrix:
                 browser: [chrome, firefox]
-        
+                
+                
         steps:
             - name: Checkout orangehrm code
               uses: actions/checkout@v4
