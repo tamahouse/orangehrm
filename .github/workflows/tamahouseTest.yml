@@ -107,7 +107,7 @@ jobs:
             echo "----"
             ls -la automation || true
             echo "----"
-            ls -la automation/allure-results || true
+            ls -la automation/target/allure-results || true
       
       - name: Copy allure results to VPS
         if: always()
@@ -116,7 +116,7 @@ jobs:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
-          source: "automation/allure-results"
+          source: "automation/target/allure-results"
           target: "/opt/allure-results/${{ env.TEMP_TAG }}"
 
       - name: Generate Allure Report on VPS
