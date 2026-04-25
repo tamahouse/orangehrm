@@ -99,6 +99,15 @@ jobs:
         working-directory: automation
         run: mvn clean test -Pregression -Devn=staging -Dbrowser=${{ matrix.browser }} -DbaseUrl=https://chaseqa.duckdns.org -DremoteUrl=http://localhost:4444
 
+      - name: Debug allure folder
+        run: |
+            echo "Check folder:"
+            ls -la
+            echo "----"
+            ls -la automation || true
+            echo "----"
+            ls -la automation/allure-results || true
+      
       - name: Copy allure results to VPS
         if: always()
         uses: appleboy/scp-action@v0.1.7
