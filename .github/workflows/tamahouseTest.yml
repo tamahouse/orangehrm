@@ -148,6 +148,7 @@ jobs:
                 cp -r $REPORT_DIR/build-$TAG $REPORT_DIR/latest
             
       - name: Show Allure URL
+        if: always()
         run: echo "https://chaseqa.duckdns.org/allure/orangehrm-${{ env.TEMP_TAG }}"
 
       - name: Promote image
