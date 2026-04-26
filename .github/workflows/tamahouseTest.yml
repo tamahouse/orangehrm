@@ -119,6 +119,16 @@ jobs:
             script: |
                 mkdir -p $HOME/allure-results
                 mkdir -p $HOME/allure-reports
+                
+      - name: Copy Allure template & script
+        if: always()
+        uses: appleboy/scp-action@v0.1.7
+        with:
+            host: ${{ secrets.VPS_HOST }}
+            username: ${{ secrets.VPS_USER }}
+            key: ${{ secrets.VPS_SSH_KEY }}
+            source: "allure/index.template.html,allure/generate-index.sh"
+            target: "~/allure-reports/"
 
       - name: Copy allure results to VPS
         if: always()
@@ -129,6 +139,7 @@ jobs:
             key: ${{ secrets.VPS_SSH_KEY }}
             source: "automation/target/allure-results/*"
             target: "~/allure-results/${{ env.TEMP_TAG }}"
+            
 
       - name: Generate Allure Report on VPS
         if: always()
@@ -143,13 +154,14 @@ jobs:
                 REPORT_DIR=$HOME/allure-reports
                 mkdir -p $REPORT_DIR
                 export PATH=$PATH:/opt/allure/bin
-                allure generate $RESULTS_DIR -o $REPORT_DIR/build-$TAG --clean
+                allure generate $RESULTS_DIR -o $REPORT_DIR/orangehrm-$TAG --clean
                 rm -rf $REPORT_DIR/latest
-                cp -r $REPORT_DIR/build-$TAG $REPORT_DIR/latest
-            
-      - name: Show Allure URL
-        if: always()
-        run: echo "https://chaseqa.duckdns.org/allure/orangehrm-${{ env.TEMP_TAG }}"
+                cp -r $REPORT_DIR/orangehrm-$TAG $REPORT_DIR/latest
+                chmod +x $REPORT_DIR/generate-index.sh
+                $REPORT_DIR/generate-index.sh $REPORT_DIR
+                cd $REPORT_DIR
+                ls -dt orangehrm-* | tail -n +21 | xargs -r rm -rf
+       
 
       - name: Promote image
         if: success()
