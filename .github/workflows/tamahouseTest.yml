@@ -142,6 +142,7 @@ jobs:
                 RESULTS_DIR=$HOME/allure-results/$TAG
                 REPORT_DIR=$HOME/allure-reports
                 mkdir -p $REPORT_DIR
+                export PATH=$PATH:/opt/allure/bin
                 allure --version
                 rm -rf $REPORT_DIR/latest
                 cp -r $REPORT_DIR/build-$TAG $REPORT_DIR/latest
