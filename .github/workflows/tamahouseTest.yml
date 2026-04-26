@@ -143,6 +143,9 @@ jobs:
           docker tag tamahouse/orangehrm:$TEMP_TAG tamahouse/orangehrm:stable
           docker push tamahouse/orangehrm:$NEW_VER
           docker push tamahouse/orangehrm:stable
+          
+      - name: Checkout code
+        uses: actions/checkout@v4
 
       - name: Create Git Tag
         if: needs.e2e-test.result == 'success'
