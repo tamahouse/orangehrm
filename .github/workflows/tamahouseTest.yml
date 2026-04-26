@@ -99,16 +99,6 @@ jobs:
         working-directory: automation
         run: mvn clean test -Pregression -Devn=staging -Dbrowser=${{ matrix.browser }} -DbaseUrl=https://chaseqa.duckdns.org -DremoteUrl=http://localhost:4444
 
-      - name: Debug allure folder
-        if: always()
-        run: |
-            echo "Check folder:"
-            ls -la
-            echo "----"
-            ls -la automation || true
-            echo "----"
-            ls -la automation/target/allure-results || true
-
       - name: Prepare folders on VPS
         if: always()
         uses: appleboy/ssh-action@v1.0.3
@@ -117,8 +107,9 @@ jobs:
             username: ${{ secrets.VPS_USER }}
             key: ${{ secrets.VPS_SSH_KEY }}
             script: |
-                mkdir -p $HOME/allure-results
-                mkdir -p $HOME/allure-reports
+                # Dùng đường dẫn tương đối, mkdir -p sẽ tạo nếu chưa có
+                mkdir -p allure-results
+                mkdir -p allure-reports
                 
       - name: Copy Allure template & script
         if: always()
@@ -128,7 +119,8 @@ jobs:
             username: ${{ secrets.VPS_USER }}
             key: ${{ secrets.VPS_SSH_KEY }}
             source: "automation/allure/index.template.html,automation/allure/generate-index.sh"
-            target: "$HOME/allure-reports/"
+            target: "allure-reports/"
+            strip_components: 2 # Loại bỏ "automation/allure/" để file nằm ngay trong "allure-reports/"
 
       - name: Copy allure results to VPS
         if: always()
@@ -138,8 +130,8 @@ jobs:
             username: ${{ secrets.VPS_USER }}
             key: ${{ secrets.VPS_SSH_KEY }}
             source: "automation/target/allure-results/*"
-            target: "$HOME/allure-results/${{ env.TEMP_TAG }}"
-            
+            target: "allure-results/${{ env.TEMP_TAG }}"
+            strip_components: 3 # Loại bỏ "automation/target/allure-results/" 
 
       - name: Generate Allure Report on VPS
         if: always()
@@ -150,15 +142,16 @@ jobs:
             key: ${{ secrets.VPS_SSH_KEY }}
             script: |
                 TAG=${{ env.TEMP_TAG }}
-                RESULTS_DIR=$HOME/allure-results/$TAG
-                REPORT_DIR=$HOME/allure-reports
-                export PATH=$PATH:/opt/allure/bin
-                allure generate $RESULTS_DIR -o $REPORT_DIR/orangehrm-$TAG --clean
-                rm -rf $REPORT_DIR/latest
-                cp -r $REPORT_DIR/orangehrm-$TAG $REPORT_DIR/latest
-                chmod +x $REPORT_DIR/generate-index.sh
-                $REPORT_DIR/generate-index.sh $REPORT_DIR
-                cd $REPORT_DIR
+                # Sử dụng đường dẫn tương đối đồng bộ
+                RESULTS_DIR="allure-results/$TAG"
+                REPORT_DIR="allure-reports"
+                export PATH=$PATH:/opt/allure/bin           
+                allure generate "$RESULTS_DIR" -o "$REPORT_DIR/orangehrm-$TAG" --clean                
+                rm -rf "$REPORT_DIR/latest"
+                cp -r "$REPORT_DIR/orangehrm-$TAG" "$REPORT_DIR/latest"              
+                chmod +x "$REPORT_DIR/generate-index.sh"
+                ./"$REPORT_DIR/generate-index.sh" "$REPORT_DIR"              
+                cd "$REPORT_DIR"
                 ls -dt orangehrm-* | tail -n +21 | xargs -r rm -rf
        
 
