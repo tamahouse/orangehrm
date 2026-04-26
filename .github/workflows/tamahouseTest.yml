@@ -143,7 +143,7 @@ jobs:
                 REPORT_DIR=$HOME/allure-reports
                 mkdir -p $REPORT_DIR
                 export PATH=$PATH:/opt/allure/bin
-                allure --version
+                allure generate $RESULTS_DIR -o $REPORT_DIR/build-$TAG --clean
                 rm -rf $REPORT_DIR/latest
                 cp -r $REPORT_DIR/build-$TAG $REPORT_DIR/latest
             
