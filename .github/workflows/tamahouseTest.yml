@@ -108,43 +108,43 @@ jobs:
             ls -la automation || true
             echo "----"
             ls -la automation/target/allure-results || true
- 
+
       - name: Prepare folders on VPS
         if: always()
         uses: appleboy/ssh-action@v1.0.3
         with:
-          host: ${{ secrets.VPS_HOST }}
-          username: ${{ secrets.VPS_USER }}
-          key: ${{ secrets.VPS_SSH_KEY }}
-          script: |
-            mkdir -p /home/tamahouse/allure-results
-            mkdir -p /home/tamahouse/allure-reports
-      
+            host: ${{ secrets.VPS_HOST }}
+            username: ${{ secrets.VPS_USER }}
+            key: ${{ secrets.VPS_SSH_KEY }}
+            script: |
+                mkdir -p $HOME/allure-results
+                mkdir -p $HOME/allure-reports
+
       - name: Copy allure results to VPS
         if: always()
         uses: appleboy/scp-action@v0.1.7
         with:
-          host: ${{ secrets.VPS_HOST }}
-          username: ${{ secrets.VPS_USER }}
-          key: ${{ secrets.VPS_SSH_KEY }}
-          source: "automation/target/allure-results"
-          target: "/home/tamahouse/allure-results/${{ env.TEMP_TAG }}"
+            host: ${{ secrets.VPS_HOST }}
+            username: ${{ secrets.VPS_USER }}
+            key: ${{ secrets.VPS_SSH_KEY }}
+            source: "automation/target/allure-results/*"
+            target: "~/allure-results/${{ env.TEMP_TAG }}"
 
       - name: Generate Allure Report on VPS
         if: always()
         uses: appleboy/ssh-action@v1.0.3
         with:
-          host: ${{ secrets.VPS_HOST }}
-          username: ${{ secrets.VPS_USER }}
-          key: ${{ secrets.VPS_SSH_KEY }}
-          script: |
-            TAG=${{ env.TEMP_TAG }}
-            RESULTS_DIR=/home/tamahouse/allure-results/$TAG
-            REPORT_DIR=/home/tamahouse/allure-reports
-            mkdir -p $REPORT_DIR
-            allure generate $RESULTS_DIR -o $REPORT_DIR/build-$TAG --clean
-            rm -rf $REPORT_DIR/latest
-            cp -r $REPORT_DIR/build-$TAG $REPORT_DIR/latest
+            host: ${{ secrets.VPS_HOST }}
+            username: ${{ secrets.VPS_USER }}
+            key: ${{ secrets.VPS_SSH_KEY }}
+            script: |
+                TAG=${{ env.TEMP_TAG }}
+                RESULTS_DIR=$HOME/allure-results/$TAG
+                REPORT_DIR=$HOME/allure-reports
+                mkdir -p $REPORT_DIR
+                allure generate $RESULTS_DIR -o $REPORT_DIR/build-$TAG --clean
+                rm -rf $REPORT_DIR/latest
+                cp -r $REPORT_DIR/build-$TAG $REPORT_DIR/latest
             
       - name: Show Allure URL
         run: echo "https://chaseqa.duckdns.org/allure/orangehrm-${{ env.TEMP_TAG }}"
