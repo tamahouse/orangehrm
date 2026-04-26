@@ -128,7 +128,7 @@ jobs:
             username: ${{ secrets.VPS_USER }}
             key: ${{ secrets.VPS_SSH_KEY }}
             source: "automation/allure/index.template.html,automation/allure/generate-index.sh"
-            target: "~/allure-reports/"
+            target: "$HOME/allure-reports/"
 
       - name: Copy allure results to VPS
         if: always()
@@ -138,7 +138,7 @@ jobs:
             username: ${{ secrets.VPS_USER }}
             key: ${{ secrets.VPS_SSH_KEY }}
             source: "automation/target/allure-results/*"
-            target: "~/allure-results/${{ env.TEMP_TAG }}"
+            target: "$HOME/allure-results/${{ env.TEMP_TAG }}"
             
 
       - name: Generate Allure Report on VPS
@@ -152,7 +152,6 @@ jobs:
                 TAG=${{ env.TEMP_TAG }}
                 RESULTS_DIR=$HOME/allure-results/$TAG
                 REPORT_DIR=$HOME/allure-reports
-                mkdir -p $REPORT_DIR
                 export PATH=$PATH:/opt/allure/bin
                 allure generate $RESULTS_DIR -o $REPORT_DIR/orangehrm-$TAG --clean
                 rm -rf $REPORT_DIR/latest
