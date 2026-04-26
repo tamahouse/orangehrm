@@ -1,0 +1,186 @@
+name: Build, Push & Test OrangeHRM
+
+on:
+  push:
+    branches: ["master"]
+    
+permissions:
+  contents: write
+
+jobs:
+  e2e-test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        browser: [chrome, firefox]
+
+    steps:
+      - name: Checkout orangehrm code
+        uses: actions/checkout@v4
+
+      - name: Install jq
+        run: sudo apt-get update && sudo apt-get install -y jq
+
+      - name: Get latest version
+        id: get_version
+        run: |
+          git fetch --tags
+          VERSION=$(git tag | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -n1)
+          if [ -z "$VERSION" ]; then
+            VERSION="v1.0.0"
+          fi
+          echo "CURRENT_VERSION=$VERSION" >> $GITHUB_ENV
+
+      - name: Bump version
+        run: |
+          VERSION=${CURRENT_VERSION#v}
+          MAJOR=$(echo $VERSION | cut -d. -f1)
+          MINOR=$(echo $VERSION | cut -d. -f2)
+          PATCH=$(echo $VERSION | cut -d. -f3)
+          PATCH=$((PATCH+1))
+          NEW_VERSION="$MAJOR.$MINOR.$PATCH"
+          echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
+
+      - name: Set temp tag
+        run: echo "TEMP_TAG=temp-${GITHUB_SHA}" >> $GITHUB_ENV
+
+      - name: Pull cache (stable)
+        run: docker pull tamahouse/orangehrm:stable || true
+
+      - name: Build (with cache)
+        run: |
+          docker build \
+            --cache-from=tamahouse/orangehrm:stable \
+            -t tamahouse/orangehrm:${{ env.TEMP_TAG }} .
+
+      - name: Login Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PAT }}
+
+      - name: Push temp (with cache)
+        run: docker push tamahouse/orangehrm:${{ env.TEMP_TAG }}
+
+      - name: Stop container with label orangehrm
+        run: sudo docker ps -q --filter "label=app=orangehrm" | xargs -r docker stop
+
+      - name: Remove OrangeHRM
+        run: sudo docker ps -aq --filter "label=app=orangehrm" | xargs -r docker rm
+
+      - name: Get traefik from repo
+        uses: actions/checkout@v4
+        with:
+          repository: tamahouse/orangehrm-traefik
+          path: orangehrm-traefik
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Deploy
+        run: |
+          cd orangehrm-traefik
+          export TAG=${{ env.TEMP_TAG }}
+          echo "Deploy version: $TAG"
+          docker compose up -d
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Get automation code
+        uses: actions/checkout@v4
+        with:
+          repository: tamahouse/orangehrm-demo-automation
+          path: automation
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Start Selenium
+        run: sudo docker run -d -p 4444:4444 --name selenium selenium/standalone-${{ matrix.browser }}
+
+      - name: Run Test
+        working-directory: automation
+        run: mvn clean test -Pregression -Devn=staging -Dbrowser=${{ matrix.browser }} -DbaseUrl=https://chaseqa.duckdns.org -DremoteUrl=http://localhost:4444
+
+      - name: Prepare folders on VPS
+        if: always()
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+            host: ${{ secrets.VPS_HOST }}
+            username: ${{ secrets.VPS_USER }}
+            key: ${{ secrets.VPS_SSH_KEY }}
+            script: |
+                mkdir -p allure-results
+                mkdir -p allure-reports
+                
+      - name: Copy Allure template & script
+        if: always()
+        uses: appleboy/scp-action@v0.1.7
+        with:
+            host: ${{ secrets.VPS_HOST }}
+            username: ${{ secrets.VPS_USER }}
+            key: ${{ secrets.VPS_SSH_KEY }}
+            source: "automation/allure/index.template.html,automation/allure/generate-index.sh"
+            target: "allure-reports/"
+            strip_components: 2 # Loại bỏ "automation/allure/" để file nằm ngay trong "allure-reports/"
+
+      - name: Copy allure results to VPS
+        if: always()
+        uses: appleboy/scp-action@v0.1.7
+        with:
+            host: ${{ secrets.VPS_HOST }}
+            username: ${{ secrets.VPS_USER }}
+            key: ${{ secrets.VPS_SSH_KEY }}
+            source: "automation/target/allure-results/*"
+            target: "allure-results/${{ env.TEMP_TAG }}"
+            strip_components: 3 # Loại bỏ "automation/target/allure-results/" 
+
+      - name: Generate Allure Report on VPS
+        if: always()
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+            host: ${{ secrets.VPS_HOST }}
+            username: ${{ secrets.VPS_USER }}
+            key: ${{ secrets.VPS_SSH_KEY }}
+            script: |
+                TAG=${{ env.TEMP_TAG }}
+                # Sử dụng đường dẫn tương đối đồng bộ
+                RESULTS_DIR="allure-results/$TAG"
+                REPORT_DIR="allure-reports"
+                export PATH=$PATH:/opt/allure/bin           
+                allure generate "$RESULTS_DIR" -o "$REPORT_DIR/orangehrm-$TAG" --clean                
+                rm -rf "$REPORT_DIR/latest"
+                cp -r "$REPORT_DIR/orangehrm-$TAG" "$REPORT_DIR/latest"              
+                chmod +x "$REPORT_DIR/generate-index.sh"
+                ./"$REPORT_DIR/generate-index.sh" "$REPORT_DIR"              
+                cd "$REPORT_DIR"
+                ls -dt orangehrm-* | tail -n +21 | xargs -r rm -rf
+       
+
+      - name: Promote image
+        if: success()
+        run: |
+          docker tag tamahouse/orangehrm:${{ env.TEMP_TAG }} tamahouse/orangehrm:${{ env.NEW_VERSION }}
+          docker tag tamahouse/orangehrm:${{ env.TEMP_TAG }} tamahouse/orangehrm:stable
+          docker push tamahouse/orangehrm:${{ env.NEW_VERSION }}
+          docker push tamahouse/orangehrm:stable
+
+      - name: Create git tag
+        if: success()
+        run: |
+          git config user.name "tamahouse"
+          git config user.email "tamahouse@github.com"
+          git tag v${{ env.NEW_VERSION }}
+          git push origin v${{ env.NEW_VERSION }}
+
+      - name: Rollback
+        if: failure()
+        run: |
+          cd orangehrm-traefik
+          export TAG=stable
+          docker compose pull
+          docker compose up -d
+
+      - name: Stop Selenium
+        if: always()
+        run: docker rm -f selenium
