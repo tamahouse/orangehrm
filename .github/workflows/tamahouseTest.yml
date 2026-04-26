@@ -108,6 +108,16 @@ jobs:
             ls -la automation || true
             echo "----"
             ls -la automation/target/allure-results || true
+ 
+      - name: Prepare folders on VPS
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          script: |
+            mkdir -p /home/tamahouse/allure-results
+            mkdir -p /home/tamahouse/allure-reports
       
       - name: Copy allure results to VPS
         if: always()
