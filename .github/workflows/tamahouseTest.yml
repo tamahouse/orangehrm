@@ -3,6 +3,9 @@ name: Build, Push & Test OrangeHRM
 on:
   push:
     branches: ["master"]
+    
+permissions:
+  contents: write
 
 jobs:
   e2e-test:
