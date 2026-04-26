@@ -117,20 +117,26 @@ jobs:
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           source: "automation/target/allure-results"
-          target: "/opt/allure-results/${{ env.TEMP_TAG }}"
+          target: "/home/tamahouse/allure-results/${{ env.TEMP_TAG }}"
 
       - name: Generate Allure Report on VPS
         if: always()
         uses: appleboy/ssh-action@v1.0.3
         with:
-          host: ${{ secrets.SSH_HOST }}
+          host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           script: |
             TAG=${{ env.TEMP_TAG }}
-            allure generate /opt/allure-results/$TAG -o /opt/allure-reports/build-$TAG --clean
-            rm -rf /opt/allure-reports/latest
-            cp -r /opt/allure-reports/build-$TAG /opt/allure-reports/latest
+            RESULTS_DIR=/home/tamahouse/allure-results/$TAG
+            REPORT_DIR=/home/tamahouse/allure-reports
+            mkdir -p $REPORT_DIR
+            allure generate $RESULTS_DIR -o $REPORT_DIR/build-$TAG --clean
+            rm -rf $REPORT_DIR/latest
+            cp -r $REPORT_DIR/build-$TAG $REPORT_DIR/latest
+            
+      - name: Show Allure URL
+        run: echo "https://chaseqa.duckdns.org/allure/orangehrm-${{ env.TEMP_TAG }}"
 
       - name: Promote image
         if: success()
