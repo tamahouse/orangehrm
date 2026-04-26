@@ -110,7 +110,6 @@ jobs:
             username: ${{ secrets.VPS_USER }}
             key: ${{ secrets.VPS_SSH_KEY }}
             script: |
-                # Dùng đường dẫn tương đối, mkdir -p sẽ tạo nếu chưa có
                 mkdir -p allure-results
                 mkdir -p allure-reports
                 
