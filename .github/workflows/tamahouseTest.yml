@@ -110,6 +110,7 @@ jobs:
             ls -la automation/target/allure-results || true
  
       - name: Prepare folders on VPS
+        if: always()
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SSH_HOST }}
