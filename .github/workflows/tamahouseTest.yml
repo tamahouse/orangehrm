@@ -24,9 +24,12 @@ jobs:
 
       - name: Ensure jq
         run: |
-            if ! command -v jq &> /dev/null; then
-            echo "install jq"
-            sudo apt-get update && sudo apt-get install -y jq
+            if ! command -v jq >/dev/null 2>&1; then
+            echo "jq not found → installing..."
+            sudo apt-get update
+            sudo apt-get install -y jq
+            else
+            echo "jq already installed"
             fi
 
       - name: Get latest version
@@ -58,13 +61,13 @@ jobs:
           echo "TEMP_TAG=${{ env.TEMP_TAG }}" >> $GITHUB_OUTPUT
           echo "NEW_VERSION=${{ env.NEW_VERSION }}" >> $GITHUB_OUTPUT
 
-      - name: Pull cache (stable)
-        run: docker pull tamahouse/orangehrm:stable || true
+      # - name: Pull cache (stable)
+      #  run: docker pull tamahouse/orangehrm:stable || true
 
       - name: Build (with cache)
         run: |
-          docker build \
-            --cache-from=tamahouse/orangehrm:stable \
+          # docker build --cache-from=tamahouse/orangehrm:stable \
+          docker build 
             -t tamahouse/orangehrm:${{ env.TEMP_TAG }} .
 
       - name: Login Docker Hub
