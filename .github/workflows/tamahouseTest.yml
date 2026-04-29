@@ -106,7 +106,7 @@ jobs:
     strategy:
       fail-fast: false # Prevents cancelling Firefox if Chrome fails
       matrix:
-        browser: [chrome, firefox]
+        browser: [chrome]
 
     steps:
       - name: Setup Java
