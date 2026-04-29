@@ -130,6 +130,7 @@ jobs:
         run: mvn clean test -Pregression -Devn=staging -Dbrowser=${{ matrix.browser }} -DbaseUrl=https://chaseqa.duckdns.org -DremoteUrl=http://localhost:4444
         
       - name: Check allure results exist
+        if: always()
         run: |
             if [ ! -d "automation/target/allure-results" ]; then
             echo "No allure results → skip SCP"
@@ -166,6 +167,7 @@ jobs:
           strip_components: 3 
           
       - name: Verify on VPS
+        if: always()
         uses: appleboy/ssh-action@v1.0.3
         with:
             host: ${{ secrets.VPS_HOST }}
