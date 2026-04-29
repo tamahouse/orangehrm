@@ -231,7 +231,7 @@ jobs:
             rm -rf "$REPORT_DIR/latest"
             cp -r "$REPORT_DIR/orangehrm-$TAG-$BROWSER" "$REPORT_DIR/latest"
             chmod +x "$REPORT_DIR/generate-index.sh"
-            ./"$REPORT_DIR/generate-index.sh" "$REPORT_DIR"
+            "$REPORT_DIR/generate-index.sh" "$REPORT_DIR"
             cd "$REPORT_DIR"
             # giữ 20 report mới nhất
             ls -dt orangehrm-* | tail -n +21 | xargs -r rm -rf
