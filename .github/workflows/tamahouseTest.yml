@@ -153,6 +153,7 @@ jobs:
           # Create a specific folder for EACH browser to avoid SCP race conditions
           script: |
             sudo mkdir -p /opt/allure-results/${{ needs.build-deploy.outputs.TEMP_TAG }}/${{ matrix.browser }}
+            sudo chown -R $(whoami):$(whoami) /opt/allure-results
             sudo mkdir -p /opt/allure-reports
 
             
