@@ -152,8 +152,8 @@ jobs:
           key: ${{ secrets.VPS_SSH_KEY }}
           # Create a specific folder for EACH browser to avoid SCP race conditions
           script: |
-            mkdir -p allure-results/${{ needs.build-deploy.outputs.TEMP_TAG }}/${{ matrix.browser }}
-            mkdir -p allure-reports
+            mkdir -p /opt/allure-results/${{ needs.build-deploy.outputs.TEMP_TAG }}/${{ matrix.browser }}
+            mkdir -p /opt/allure-reports
             whoami
             
       - name: Copy allure results to VPS
@@ -164,7 +164,7 @@ jobs:
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           source: "automation/target/allure-results/*"
-          target: "allure-results/${{ needs.build-deploy.outputs.TEMP_TAG }}/${{ matrix.browser }}"
+          target: "/opt/allure-results/${{ needs.build-deploy.outputs.TEMP_TAG }}/${{ matrix.browser }}"
           strip_components: 3 
           
       - name: Verify on VPS
@@ -175,8 +175,8 @@ jobs:
             username: ${{ secrets.VPS_USER }}
             key: ${{ secrets.VPS_SSH_KEY }}
             script: |
-                ls -la allure-results
-                ls -la allure-results/${{ needs.build-deploy.outputs.TEMP_TAG }} || echo "NOT FOUND"
+                ls /opt/allure-results
+                ls /opt/allure-results/${{ needs.build-deploy.outputs.TEMP_TAG }} || echo "NOT FOUND"
                 whoami
 
       - name: Stop Selenium
@@ -207,7 +207,7 @@ jobs:
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           source: "automation/allure/index.template.html,automation/allure/generate-index.sh"
-          target: "allure-reports/"
+          target: "/opt/allure-reports/"
           strip_components: 2 
 
       - name: Generate Allure Report on VPS
@@ -217,10 +217,12 @@ jobs:
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           script: |
+            ls -la /opt/allure-results
+            ls -la /opt/allure-results/${{ needs.build-deploy.outputs.TEMP_TAG }} || echo "NOT FOUND"
             TAG=${{ needs.build-deploy.outputs.TEMP_TAG }}
             BROWSER=${{ matrix.browser }}
-            RESULTS_DIR="allure-results/$TAG/$BROWSER"
-            REPORT_DIR="allure-reports"
+            RESULTS_DIR="/opt/allure-results/$TAG/$BROWSER"
+            REPORT_DIR="/opt/allure-reports"
             export PATH=$PATH:/opt/allure/bin
             # Generate report riêng từng browser
             allure generate "$RESULTS_DIR" -o "$REPORT_DIR/orangehrm-$TAG-$BROWSER" --clean
