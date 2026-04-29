@@ -218,23 +218,35 @@ jobs:
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           script: |
-            ls -la /opt/allure-results
-            ls -la /opt/allure-results/${{ needs.build-deploy.outputs.TEMP_TAG }} || echo "NOT FOUND"
             TAG=${{ needs.build-deploy.outputs.TEMP_TAG }}
-            BROWSER=${{ matrix.browser }}
-            RESULTS_DIR="/opt/allure-results/$TAG/$BROWSER"
-            REPORT_DIR="/opt/allure-reports"
+            RESULT_ROOT="/opt/allure-results/$TAG"
+            REPORT_ROOT="/opt/allure-reports"
             export PATH=$PATH:/opt/allure/bin
-            # Generate report riêng từng browser
-            allure generate "$RESULTS_DIR" -o "$REPORT_DIR/orangehrm-$TAG-$BROWSER" --clean
-            # Update latest (tuỳ bạn muốn latest = browser nào)
-            rm -rf "$REPORT_DIR/latest"
-            cp -r "$REPORT_DIR/orangehrm-$TAG-$BROWSER" "$REPORT_DIR/latest"
-            chmod +x "$REPORT_DIR/generate-index.sh"
-            "$REPORT_DIR/generate-index.sh" "$REPORT_DIR"
-            cd "$REPORT_DIR"
-            # giữ 20 report mới nhất
-            ls -dt orangehrm-* | tail -n +21 | xargs -r rm -rf
+            echo "📂 Available browsers:"
+            ls -la "$RESULT_ROOT" || echo "No results found"
+            # Tạo folder TAG
+            mkdir -p "$REPORT_ROOT/$TAG"
+            for BROWSER in $(ls "$RESULT_ROOT"); do
+              echo "🚀 Generating report for $BROWSER"
+              RESULTS_DIR="$RESULT_ROOT/$BROWSER"
+              REPORT_DIR="$REPORT_ROOT/$TAG/$BROWSER"
+              # Skip nếu folder rỗng
+              if [ ! -d "$RESULTS_DIR" ] || [ -z "$(ls -A "$RESULTS_DIR")" ]; then
+                echo "❌ Skip $BROWSER (no results)"
+                continue
+              fi
+              mkdir -p "$REPORT_DIR"
+              allure generate "$RESULTS_DIR" -o "$REPORT_DIR" --clean
+            done
+            # 👉 Update latest = toàn bộ TAG (multi-browser)
+            rm -rf "$REPORT_ROOT/latest"
+            cp -r "$REPORT_ROOT/$TAG" "$REPORT_ROOT/latest"
+            # Generate index
+            chmod +x "$REPORT_ROOT/generate-index.sh"
+            "$REPORT_ROOT/generate-index.sh" "$REPORT_ROOT"
+            cd "$REPORT_ROOT"
+            # 👉 Giữ 20 TAG mới nhất (không phải từng browser nữa)
+            ls -dt */ | grep -v latest | tail -n +21 | xargs -r rm -rf
 
       # --- 2. Success: Promote Image & Tag ---
       - name: Login Docker Hub
