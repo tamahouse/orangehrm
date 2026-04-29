@@ -216,17 +216,19 @@ jobs:
           key: ${{ secrets.VPS_SSH_KEY }}
           script: |
             TAG=${{ needs.build-deploy.outputs.TEMP_TAG }}
-            RESULTS_DIR="allure-results/$TAG"
+            BROWSER=${{ matrix.browser }}
+            RESULTS_DIR="allure-results/$TAG/$BROWSER"
             REPORT_DIR="allure-reports"
             export PATH=$PATH:/opt/allure/bin
-            
-            # Use '/*' to merge results from both the chrome/ and firefox/ sub-folders
-            allure generate "$RESULTS_DIR"/* -o "$REPORT_DIR/orangehrm-$TAG" --clean                
+            # Generate report riêng từng browser
+            allure generate "$RESULTS_DIR" -o "$REPORT_DIR/orangehrm-$TAG-$BROWSER" --clean
+            # Update latest (tuỳ bạn muốn latest = browser nào)
             rm -rf "$REPORT_DIR/latest"
-            cp -r "$REPORT_DIR/orangehrm-$TAG" "$REPORT_DIR/latest"              
+            cp -r "$REPORT_DIR/orangehrm-$TAG-$BROWSER" "$REPORT_DIR/latest"
             chmod +x "$REPORT_DIR/generate-index.sh"
-            ./"$REPORT_DIR/generate-index.sh" "$REPORT_DIR"              
+            ./"$REPORT_DIR/generate-index.sh" "$REPORT_DIR"
             cd "$REPORT_DIR"
+            # giữ 20 report mới nhất
             ls -dt orangehrm-* | tail -n +21 | xargs -r rm -rf
 
       # --- 2. Success: Promote Image & Tag ---
