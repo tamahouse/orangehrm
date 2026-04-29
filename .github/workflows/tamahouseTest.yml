@@ -154,8 +154,8 @@ jobs:
           script: |
             mkdir -p allure-results/${{ needs.build-deploy.outputs.TEMP_TAG }}/${{ matrix.browser }}
             mkdir -p allure-reports
-            realpath allure-results
-            realpath allure-reports
+            pwd
+            readlink -f allure-results
             
       - name: Copy allure results to VPS
         if: always()
@@ -178,7 +178,8 @@ jobs:
             script: |
                 ls -la allure-results
                 ls -la allure-results/${{ needs.build-deploy.outputs.TEMP_TAG }} || echo "NOT FOUND"
-                realpath allure-results
+                pwd
+                readlink -f allure-results
 
       - name: Stop Selenium
         if: always()
