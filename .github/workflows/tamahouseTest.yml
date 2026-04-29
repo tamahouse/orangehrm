@@ -152,9 +152,9 @@ jobs:
           key: ${{ secrets.VPS_SSH_KEY }}
           # Create a specific folder for EACH browser to avoid SCP race conditions
           script: |
-            mkdir -p /opt/allure-results/${{ needs.build-deploy.outputs.TEMP_TAG }}/${{ matrix.browser }}
-            mkdir -p /opt/allure-reports
-            whoami
+            sudo mkdir -p /opt/allure-results/${{ needs.build-deploy.outputs.TEMP_TAG }}/${{ matrix.browser }}
+            sudo mkdir -p /opt/allure-reports
+
             
       - name: Copy allure results to VPS
         if: always()
@@ -177,7 +177,7 @@ jobs:
             script: |
                 ls /opt/allure-results
                 ls /opt/allure-results/${{ needs.build-deploy.outputs.TEMP_TAG }} || echo "NOT FOUND"
-                whoami
+             
 
       - name: Stop Selenium
         if: always()
