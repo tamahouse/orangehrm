@@ -119,8 +119,9 @@ jobs:
           # Create a specific folder for EACH browser to avoid SCP race conditions
           script: |
             sudo mkdir -p ${{ env.RESULT_ROOT }}
-            sudo chown -R $(whoami):$(whoami) ${{ env.RESULT_ROOT }}
             sudo mkdir -p ${{ env.RESULT_ROOT }}/${{ needs.build-deploy.outputs.TEMP_TAG }}/${{ matrix.browser }}
+            sudo chown -R $(whoami):$(whoami) ${{ env.RESULT_ROOT }}
+            
                    
       - name: Copy allure results to VPS
         if: always()
