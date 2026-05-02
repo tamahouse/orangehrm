@@ -278,13 +278,13 @@ jobs:
           path: orangehrm-traefik
           token: ${{ secrets.GITHUB_TOKEN }}
           
- #     - name: Rebuild report
- #       if: needs.e2e-tests.result == 'success'
-  #      run: |
-  #        cd orangehrm-traefik
-   #       export TAG=${{ steps.bump_version.outputs.NEW_VERSION }}
-   #       docker compose pull
-    #      docker compose up -d
+      - name: Rebuild report
+        if: needs.e2e-tests.result == 'success'
+        run: |
+            cd orangehrm-traefik
+            export TAG=${{ steps.bump_version.outputs.NEW_VERSION }}
+            docker compose pull
+            docker compose up -d
 
       # --- 3. Failure: Rollback ---
       - name: Rollback
