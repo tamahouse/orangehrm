@@ -283,6 +283,7 @@ jobs:
         run: |
             cd orangehrm-traefik
             export TAG=${{ steps.bump_version.outputs.NEW_VERSION }}
+            docker compose down
             docker compose pull
             docker compose up -d
 
@@ -292,5 +293,6 @@ jobs:
         run: |
           cd orangehrm-traefik
           export TAG=stable
+          docker compose down
           docker compose pull
           docker compose up -d
