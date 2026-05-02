@@ -4,6 +4,10 @@ on:
   push:
     branches: ["master"]
     
+env:
+  RESULT_ROOT: /opt/allure-results
+  REPORT_ROOT: /opt/allure-reports
+    
 permissions:
   contents: write
 
@@ -13,60 +17,22 @@ jobs:
   # ==========================================
   build-deploy:
     runs-on: ubuntu-latest
+    
     # Export these variables so subsequent jobs can use them
     outputs:
       TEMP_TAG: ${{ steps.export_vars.outputs.TEMP_TAG }}
-      NEW_VERSION: ${{ steps.export_vars.outputs.NEW_VERSION }}
     
     steps:
       - name: Checkout orangehrm code
         uses: actions/checkout@v4
 
-      - name: Ensure jq
-        run: |
-            if ! command -v jq >/dev/null 2>&1; then
-            echo "jq not found → installing..."
-            sudo apt-get update
-            sudo apt-get install -y jq
-            else
-            echo "jq already installed"
-            fi
-
-      - name: Get latest version
-        id: get_version
-        run: |
-          git fetch --tags
-          VERSION=$(git tag | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -n1)
-          if [ -z "$VERSION" ]; then
-            VERSION="v1.0.0"
-          fi
-          echo "CURRENT_VERSION=$VERSION" >> $GITHUB_ENV
-
-      - name: Bump version
-        run: |
-          VERSION=${CURRENT_VERSION#v}
-          MAJOR=$(echo $VERSION | cut -d. -f1)
-          MINOR=$(echo $VERSION | cut -d. -f2)
-          PATCH=$(echo $VERSION | cut -d. -f3)
-          PATCH=$((PATCH+1))
-          NEW_VERSION="$MAJOR.$MINOR.$PATCH"
-          echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
-
       - name: Set temp tag
-        run: echo "TEMP_TAG=temp-${GITHUB_SHA}" >> $GITHUB_ENV
-
-      - name: Export variables to outputs
         id: export_vars
-        run: |
-          echo "TEMP_TAG=${{ env.TEMP_TAG }}" >> $GITHUB_OUTPUT
-          echo "NEW_VERSION=${{ env.NEW_VERSION }}" >> $GITHUB_OUTPUT
+        run: echo "TEMP_TAG=temp-${GITHUB_SHA}" >> $GITHUB_OUTPUT
 
-      # - name: Pull cache (stable)
-      #  run: docker pull tamahouse/orangehrm:stable || true
-
-      - name: Build (with cache)
+      - name: Build temp version
         run: |
-          docker build -t tamahouse/orangehrm:${{ env.TEMP_TAG }} .
+          docker build -t tamahouse/orangehrm:${{ steps.export_vars.outputs.TEMP_TAG }} .
 
       - name: Login Docker Hub
         uses: docker/login-action@v3
@@ -74,8 +40,8 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PAT }}
 
-      - name: Push temp (with cache)
-        run: docker push tamahouse/orangehrm:${{ env.TEMP_TAG }}
+      - name: Push temp version
+        run: docker push tamahouse/orangehrm:${{ steps.export_vars.outputs.TEMP_TAG }}
 
       - name: Stop container with label orangehrm
         run: sudo docker ps -q --filter "label=app=orangehrm" | xargs -r docker stop
@@ -93,7 +59,7 @@ jobs:
       - name: Deploy
         run: |
           cd orangehrm-traefik
-          export TAG=${{ env.TEMP_TAG }}
+          export TAG=${{ steps.export_vars.outputs.TEMP_TAG }}
           echo "Deploy version: $TAG"
           docker compose up -d
 
@@ -152,11 +118,10 @@ jobs:
           key: ${{ secrets.VPS_SSH_KEY }}
           # Create a specific folder for EACH browser to avoid SCP race conditions
           script: |
-            sudo mkdir -p /opt/allure-results/${{ needs.build-deploy.outputs.TEMP_TAG }}/${{ matrix.browser }}
-            sudo chown -R $(whoami):$(whoami) /opt/allure-results
-            sudo mkdir -p /opt/allure-reports
-
-            
+            sudo mkdir -p ${{ env.RESULT_ROOT }}
+            sudo chown -R $(whoami):$(whoami) ${{ env.RESULT_ROOT }}
+            sudo mkdir -p ${{ env.RESULT_ROOT }}/${{ needs.build-deploy.outputs.TEMP_TAG }}/${{ matrix.browser }}
+                   
       - name: Copy allure results to VPS
         if: always()
         uses: appleboy/scp-action@v0.1.7
@@ -165,7 +130,7 @@ jobs:
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           source: "automation/target/allure-results/*"
-          target: "/opt/allure-results/${{ needs.build-deploy.outputs.TEMP_TAG }}/${{ matrix.browser }}"
+          target: "${{ env.RESULT_ROOT }}/${{ needs.build-deploy.outputs.TEMP_TAG }}/${{ matrix.browser }}"
           strip_components: 3 
           
       - name: Verify on VPS
@@ -176,8 +141,8 @@ jobs:
             username: ${{ secrets.VPS_USER }}
             key: ${{ secrets.VPS_SSH_KEY }}
             script: |
-                ls /opt/allure-results
-                ls /opt/allure-results/${{ needs.build-deploy.outputs.TEMP_TAG }} || echo "NOT FOUND"
+                ls ${{ env.RESULT_ROOT }}
+                ls ${{ env.RESULT_ROOT }}/${{ needs.build-deploy.outputs.TEMP_TAG }} || echo "NOT FOUND"
              
 
       - name: Stop Selenium
@@ -191,6 +156,9 @@ jobs:
     needs: [build-deploy, e2e-tests]
     if: always() # Run even if e2e-tests fail to ensure reports & rollbacks happen
     runs-on: ubuntu-latest
+    
+    outputs:
+      NEW_VERSION: ${{ steps.bump_version.outputs.NEW_VERSION }}
     
     steps:
       # --- 1. Allure Reporting ---
@@ -208,7 +176,7 @@ jobs:
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           source: "automation/allure/index.template.html,automation/allure/generate-index.sh"
-          target: "/opt/allure-reports/"
+          target: "${{ env.REPORT_ROOT }}"
           strip_components: 2 
 
       - name: Generate Allure Report on VPS
@@ -219,24 +187,22 @@ jobs:
           key: ${{ secrets.VPS_SSH_KEY }}
           script: |
             TAG=${{ needs.build-deploy.outputs.TEMP_TAG }}
-            RESULT_ROOT="/opt/allure-results/$TAG"
-            REPORT_ROOT="/opt/allure-reports"
+            RESULT_TEMP=${{ env.RESULT_ROOT }}/$TAG
+            REPORT_ROOT=${{ env.REPORT_ROOT }}
             export PATH=$PATH:/opt/allure/bin
             echo "📂 Available browsers:"
-            ls -la "$RESULT_ROOT" || echo "No results found"
-            # Tạo folder TAG
-            mkdir -p "$REPORT_ROOT/$TAG"
-            for BROWSER in $(ls "$RESULT_ROOT"); do
+            ls -la $RESULT_TEMP || echo "No results found"
+            for BROWSER in $(ls "$RESULT_TEMP"); do
               echo "🚀 Generating report for $BROWSER"
-              RESULTS_DIR="$RESULT_ROOT/$BROWSER"
-              REPORT_DIR="$REPORT_ROOT/$TAG/$BROWSER"
+              RESULTS_BROWSER="$RESULT_TEMP/$BROWSER"
+              REPORT_BROWSER="$REPORT_ROOT/$TAG/$BROWSER"
               # Skip nếu folder rỗng
-              if [ ! -d "$RESULTS_DIR" ] || [ -z "$(ls -A "$RESULTS_DIR")" ]; then
+              if [ ! -d "$RESULTS_BROWSER" ] || [ -z "$(ls -A "$RESULTS_BROWSER")" ]; then
                 echo "❌ Skip $BROWSER (no results)"
                 continue
               fi
-              mkdir -p "$REPORT_DIR"
-              allure generate "$RESULTS_DIR" -o "$REPORT_DIR" --clean
+              mkdir -p "$REPORT_BROWSER"
+              allure generate "$RESULTS_BROWSER" -o "$REPORT_BROWSER" --clean
             done
             # 👉 Update latest = toàn bộ TAG (multi-browser)
             rm -rf "$REPORT_ROOT/latest"
@@ -255,38 +221,71 @@ jobs:
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PAT }}
+          
+      - name: Checkout orangehrm code
+        if: needs.e2e-tests.result == 'success'
+        uses: actions/checkout@v4
+          
+      - name: Get latest version
+        if: needs.e2e-tests.result == 'success'
+        id: get_version
+        run: |
+          git fetch --tags
+          VERSION=$(git tag | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -n1)
+          if [ -z "$VERSION" ]; then
+            VERSION="1.0.0"
+          fi
+          echo "CURRENT_VERSION=$VERSION" >> $GITHUB_ENV
+
+      - name: Bump version
+        if: needs.e2e-tests.result == 'success'
+        id: bump_version
+        run: |
+          VERSION=${CURRENT_VERSION#v}
+          MAJOR=$(echo $VERSION | cut -d. -f1)
+          MINOR=$(echo $VERSION | cut -d. -f2)
+          PATCH=$(echo $VERSION | cut -d. -f3)
+          PATCH=$((PATCH+1))
+          NEW_VERSION="$MAJOR.$MINOR.$PATCH"
+          echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_OUTPUT
+          
 
       - name: Promote image
         if: needs.e2e-tests.result == 'success'
         run: |
           # Pull the temp tag built in Job 1
           docker pull tamahouse/orangehrm:${{ needs.build-deploy.outputs.TEMP_TAG }}
-          docker tag tamahouse/orangehrm:${{ needs.build-deploy.outputs.TEMP_TAG }} tamahouse/orangehrm:${{ needs.build-deploy.outputs.NEW_VERSION }}
+          docker tag tamahouse/orangehrm:${{ needs.build-deploy.outputs.TEMP_TAG }} tamahouse/orangehrm:${{ steps.bump_version.outputs.NEW_VERSION }}
           docker tag tamahouse/orangehrm:${{ needs.build-deploy.outputs.TEMP_TAG }} tamahouse/orangehrm:stable
-          docker push tamahouse/orangehrm:${{ needs.build-deploy.outputs.NEW_VERSION }}
+          docker push tamahouse/orangehrm:${{ steps.bump_version.outputs.NEW_VERSION }}
           docker push tamahouse/orangehrm:stable
 
-      - name: Checkout orangehrm code (for Git Tag)
-        if: needs.e2e-tests.result == 'success'
-        uses: actions/checkout@v4
 
       - name: Create git tag
         if: needs.e2e-tests.result == 'success'
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git tag v${{ needs.build-deploy.outputs.NEW_VERSION }}
-          git push origin v${{ needs.build-deploy.outputs.NEW_VERSION }}
+          git config user.name "github-actions"
+          git config user.email "github-actions@users.noreply.github.com"
+          git tag ${{ steps.bump_version.outputs.NEW_VERSION }}
+          git push origin ${{ steps.bump_version.outputs.NEW_VERSION }}
 
-      # --- 3. Failure: Rollback ---
-      - name: Get traefik from repo (for Rollback)
-        if: needs.e2e-tests.result != 'success'
+      - name: Get traefik from repo
+        if: always()
         uses: actions/checkout@v4
         with:
           repository: tamahouse/orangehrm-traefik
           path: orangehrm-traefik
           token: ${{ secrets.GITHUB_TOKEN }}
+          
+ #     - name: Rebuild report
+ #       if: needs.e2e-tests.result == 'success'
+  #      run: |
+  #        cd orangehrm-traefik
+   #       export TAG=${{ steps.bump_version.outputs.NEW_VERSION }}
+   #       docker compose pull
+    #      docker compose up -d
 
+      # --- 3. Failure: Rollback ---
       - name: Rollback
         if: needs.e2e-tests.result != 'success'
         run: |
