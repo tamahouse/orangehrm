@@ -13,15 +13,84 @@ permissions:
 jobs:
 
   # ==========================================
+  # Build allure-nginx only when changed
+  # ==========================================
+build-allure-nginx:
+  runs-on: ubuntu-latest
+
+  outputs:
+    changed: ${{ steps.filter.outputs.allure }}
+
+  steps:
+
+    - name: Checkout traefik repo
+      uses: actions/checkout@v4
+      with:
+        repository: tamahouse/orangehrm-traefik
+        path: orangehrm-traefik
+        token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Detect allure infra changes
+      id: filter
+      uses: dorny/paths-filter@v3
+      with:
+        filters: |
+          allure:
+            - 'orangehrm-traefik/nginx/**'
+            - 'orangehrm-traefik/docker/allure-nginx/**'
+            - 'orangehrm-traefik/docker-compose.yml'
+
+    - name: Check allure-nginx image exists
+      id: check_image
+      run: |
+        IMAGE="tamahouse/allure-nginx:latest"
+
+        if docker manifest inspect $IMAGE > /dev/null 2>&1; then
+          echo "exists=true" >> $GITHUB_OUTPUT
+          echo "✅ Image exists: $IMAGE"
+        else
+          echo "exists=false" >> $GITHUB_OUTPUT
+          echo "❌ Image missing: $IMAGE"
+        fi
+
+    - name: Login Docker Hub
+      if: steps.filter.outputs.allure == 'true' || steps.check_image.outputs.exists == 'false'
+      uses: docker/login-action@v3
+      with:
+        username: ${{ secrets.DOCKER_USERNAME }}
+        password: ${{ secrets.DOCKER_PAT }}
+
+    - name: Build allure-nginx
+      if: steps.filter.outputs.allure == 'true' || steps.check_image.outputs.exists == 'false'
+      run: |
+        cd orangehrm-traefik
+
+        docker build \
+          -f docker/allure-nginx/Dockerfile \
+          -t tamahouse/allure-nginx:latest \
+          .
+
+    - name: Push allure-nginx
+      if: steps.filter.outputs.allure == 'true' || steps.check_image.outputs.exists == 'false'
+      run: |
+        docker push tamahouse/allure-nginx:latest
+
+
+  # ==========================================
   # JOB 1: Build & Deploy
   # ==========================================
   build-deploy:
+    needs:
+      - build-allure-nginx
+
     runs-on: ubuntu-latest
 
     outputs:
       TEMP_TAG: ${{ steps.export_vars.outputs.TEMP_TAG }}
 
     steps:
+    
+
       - name: Checkout orangehrm code
         uses: actions/checkout@v4
 
@@ -45,18 +114,6 @@ jobs:
           docker push \
             tamahouse/orangehrm:${{ steps.export_vars.outputs.TEMP_TAG }}
 
-      - name: Stop old containers
-        run: |
-          sudo docker ps -q \
-            --filter "label=app=orangehrm" \
-            | xargs -r docker stop
-
-      - name: Remove old containers
-        run: |
-          sudo docker ps -aq \
-            --filter "label=app=orangehrm" \
-            | xargs -r docker rm
-
       - name: Checkout traefik repo
         uses: actions/checkout@v4
         with:
@@ -64,15 +121,22 @@ jobs:
           path: orangehrm-traefik
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Deploy temp version
-        run: |
-          cd orangehrm-traefik
+      - name: Deploy temp version on VPS
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
 
-          export TAG=${{ steps.export_vars.outputs.TEMP_TAG }}
+          script: |
 
-          echo "🚀 Deploy version: $TAG"
+            cd /opt/orangehrm-traefik
 
-          docker compose up -d
+            export TAG=${{ steps.export_vars.outputs.TEMP_TAG }}
+
+            docker compose pull
+
+            docker compose up -d
 
 
   # ==========================================
@@ -211,17 +275,17 @@ jobs:
           repository: tamahouse/orangehrm-demo-automation
           path: automation
           token: ${{ secrets.GITHUB_TOKEN }}
-          
+
       - name: Prepare report-tools folder
         uses: appleboy/ssh-action@v1.0.3
         with:
-            host: ${{ secrets.VPS_HOST }}
-            username: ${{ secrets.VPS_USER }}
-            key: ${{ secrets.VPS_SSH_KEY }}
-            script: |
-              sudo mkdir -p /opt/report-tools
-              sudo chown -R $(whoami):$(whoami) /opt/report-tools
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
 
+          script: |
+            sudo mkdir -p /opt/report-tools
+            sudo chown -R $(whoami):$(whoami) /opt/report-tools
 
       - name: Upload reporting tools
         uses: appleboy/scp-action@v0.1.7
@@ -229,8 +293,11 @@ jobs:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
+
           source: "automation/report/*"
+
           target: "/opt/report-tools"
+
           strip_components: 2
 
       - name: Generate reports
@@ -333,28 +400,26 @@ jobs:
 
 
       # ======================================
-      # Rebuild Stable
+      # Deploy Stable
       # ======================================
-
-      - name: Checkout traefik repo
-        if: always()
-        uses: actions/checkout@v4
-        with:
-          repository: tamahouse/orangehrm-traefik
-          path: orangehrm-traefik
-          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Deploy stable version
         if: needs.e2e-tests.result == 'success'
-        run: |
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
 
-          cd orangehrm-traefik
+          script: |
 
-          export TAG=${{ steps.bump_version.outputs.NEW_VERSION }}
+            cd /opt/orangehrm-traefik
 
-          docker compose down
-          docker compose pull
-          docker compose up -d
+            export TAG=${{ steps.bump_version.outputs.NEW_VERSION }}
+
+            docker compose pull
+
+            docker compose up -d
 
 
       # ======================================
@@ -363,13 +428,18 @@ jobs:
 
       - name: Rollback to stable
         if: needs.e2e-tests.result != 'success'
-        run: |
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
 
-          cd orangehrm-traefik
+          script: |
 
-          export TAG=stable
+            cd /opt/orangehrm-traefik
 
-          docker compose down
-          docker compose pull
-          docker compose up -d
+            export TAG=stable
 
+            docker compose pull
+
+            docker compose up -d
