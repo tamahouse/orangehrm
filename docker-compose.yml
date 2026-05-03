@@ -68,29 +68,40 @@ services:
    #    - MYSQL_DATABASE=orangehrm
 
 
+# docker-compose.yml
+
+
   allure-nginx:
-    image: nginx:alpine
+    image: tamahouse/allure-nginx:latest
+
     container_name: allure-nginx
+
     volumes:
-        - /opt/allure-reports:/usr/share/nginx/html/allure
-        - ./nginx/allure.conf:/etc/nginx/conf.d/default.conf
+      - /opt/allure-reports:/usr/share/nginx/html/allure
+
     labels:
-        - "traefik.enable=true"
-        - "traefik.http.routers.allure.rule=Host(`chaseqa.duckdns.org`) && PathPrefix(`/allure`)"
-        #- "traefik.http.routers.allure-http.rule=Host(`chaseqa.duckdns.org`)"
-        - "traefik.http.routers.allure.entrypoints=websecure"
-        #- "traefik.http.routers.allure-http.entrypoints=web"
-        - "traefik.http.services.allure.loadbalancer.server.port=80"
-        #- "traefik.http.middlewares.allure-strip.stripprefix.prefixes=/allure"
-        #- "traefik.http.routers.allure.middlewares=allure-strip"
-        - "traefik.http.routers.allure.priority=100"
-        - "traefik.http.routers.allure.tls.certresolver=myresolver"
-        - "traefik.http.middlewares.nocache.headers.customresponseheaders.Cache-Control=no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0"
-        - "traefik.http.routers.allure.middlewares=nocache"
-        - "traefik.http.services.allure.loadbalancer.passhostheader=true"
-        - "traefik.http.services.allure.loadbalancer.healthcheck.path=/"
+      - "traefik.enable=true"
+
+      - "traefik.http.routers.allure.rule=Host(`chaseqa.duckdns.org`) && PathPrefix(`/allure`)"
+
+      - "traefik.http.routers.allure.entrypoints=websecure"
+
+      - "traefik.http.services.allure.loadbalancer.server.port=80"
+
+      - "traefik.http.routers.allure.priority=100"
+
+      - "traefik.http.routers.allure.tls.certresolver=myresolver"
+
+      - "traefik.http.middlewares.nocache.headers.customresponseheaders.Cache-Control=no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0"
+
+      - "traefik.http.routers.allure.middlewares=nocache"
+
+      - "traefik.http.services.allure.loadbalancer.passhostheader=true"
+
+      - "traefik.http.services.allure.loadbalancer.healthcheck.path=/"
+
     networks:
-        - web
+      - web
 
   mariadb:
     image: mariadb:11.0
