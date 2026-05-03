@@ -211,6 +211,17 @@ jobs:
           repository: tamahouse/orangehrm-demo-automation
           path: automation
           token: ${{ secrets.GITHUB_TOKEN }}
+          
+      - name: Prepare report-tools folder
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+            host: ${{ secrets.VPS_HOST }}
+            username: ${{ secrets.VPS_USER }}
+            key: ${{ secrets.VPS_SSH_KEY }}
+            script: |
+              sudo mkdir -p /opt/report-tools
+              sudo chown -R $(whoami):$(whoami) /opt/report-tools
+
 
       - name: Upload reporting tools
         uses: appleboy/scp-action@v0.1.7
@@ -218,11 +229,8 @@ jobs:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
-
           source: "automation/report/*"
-
           target: "/opt/report-tools"
-
           strip_components: 2
 
       - name: Generate reports
