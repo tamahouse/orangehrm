@@ -77,7 +77,8 @@ jobs:
               sudo chmod 600 letsencrypt/acme.json
               export TAG=${{ steps.export_vars.outputs.TEMP_TAG }}
               sudo -E docker compose pull
-              sudo -E docker compose up -d
+              sudo docker rm -f traefik || true
+              sudo docker compose up -d --force-recreate
 
 
   # ==========================================
