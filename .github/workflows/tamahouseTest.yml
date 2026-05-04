@@ -71,7 +71,7 @@ jobs:
               cd /opt/orangehrm-traefik
               sudo  git pull origin main
               export TAG=${{ steps.export_vars.outputs.TEMP_TAG }}
-              sudo docker compose pull
+              sudo -E docker compose pull
               sudo docker compose up -d
 
 
