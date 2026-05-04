@@ -12,14 +12,12 @@ permissions:
 
 jobs:
 
- 
 # ==========================================
 # Build allure-nginx only when changed
 # ==========================================
   build-allure-nginx:
       uses: tamahouse/orangehrm-traefik/.github/workflows/build-allure-nginx.yml@main
       secrets: inherit
-
 
 
   # ==========================================
