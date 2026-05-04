@@ -73,6 +73,8 @@ jobs:
               fi
               cd /opt/orangehrm-traefik
               sudo  git pull origin main
+              sudo touch letsencrypt/acme.json
+              sudo chmod 600 letsencrypt/acme.json
               export TAG=${{ steps.export_vars.outputs.TEMP_TAG }}
               sudo -E docker compose pull
               sudo -E docker compose up -d
