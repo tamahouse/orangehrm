@@ -347,14 +347,11 @@ jobs:
           key: ${{ secrets.VPS_SSH_KEY }}
 
           script: |
-
             cd /opt/orangehrm-traefik
-
+            sudo  git pull origin main
             export TAG=${{ steps.bump_version.outputs.NEW_VERSION }}
-
-            docker compose pull
-
-            docker compose up -d
+            sudo -E docker compose pull
+            sudo -E docker compose up -d
 
       # ======================================
       # Rollback
@@ -369,11 +366,8 @@ jobs:
           key: ${{ secrets.VPS_SSH_KEY }}
 
           script: |
-
             cd /opt/orangehrm-traefik
-
+            sudo  git pull origin main
             export TAG=stable
-
-            docker compose pull
-
-            docker compose up -d
+            sudo -E docker compose pull
+            sudo -E docker compose up -d
