@@ -72,7 +72,7 @@ jobs:
               sudo  git pull origin main
               export TAG=${{ steps.export_vars.outputs.TEMP_TAG }}
               sudo -E docker compose pull
-              sudo docker compose up -d
+              sudo -E docker compose up -d
 
 
   # ==========================================
