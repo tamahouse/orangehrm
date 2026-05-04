@@ -20,6 +20,8 @@ jobs:
       uses: tamahouse/orangehrm-traefik/.github/workflows/build-allure-nginx.yml@main
       secrets: inherit
 
+
+
   # ==========================================
   # JOB 1: Build & Deploy
   # ==========================================
