@@ -30,7 +30,6 @@ jobs:
             repository: tamahouse/orangehrm-traefik
             ref: main
             fetch-depth: 0
-            path: orangehrm-traefik
             token: ${{ secrets.GITHUB_TOKEN }}
 
         - name: Detect allure infra changes
