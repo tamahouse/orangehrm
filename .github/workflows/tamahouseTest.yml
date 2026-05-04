@@ -66,13 +66,13 @@ jobs:
             script: |
               if [ ! -d "/opt/orangehrm-traefik" ]; then
                 cd /opt
-                git clone https://github.com/tamahouse/orangehrm-traefik.git
+                sudo git clone https://github.com/tamahouse/orangehrm-traefik.git
               fi
               cd /opt/orangehrm-traefik
-              git pull origin main
+              sudo  git pull origin main
               export TAG=${{ steps.export_vars.outputs.TEMP_TAG }}
-              docker compose pull
-              docker compose up -d
+              sudo docker compose pull
+              sudo docker compose up -d
 
 
   # ==========================================
