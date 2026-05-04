@@ -35,7 +35,7 @@ jobs:
     steps:
 
       - name: Checkout orangehrm code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set temp tag
         id: export_vars
@@ -99,7 +99,7 @@ jobs:
           java-version: "17"
 
       - name: Checkout automation repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           repository: tamahouse/orangehrm-demo-automation
           path: automation
@@ -206,7 +206,7 @@ jobs:
       # ======================================
 
       - name: Checkout automation repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           repository: tamahouse/orangehrm-demo-automation
           path: automation
@@ -263,7 +263,7 @@ jobs:
 
       - name: Checkout orangehrm repo
         if: needs.e2e-tests.result == 'success'
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Get latest version
         if: needs.e2e-tests.result == 'success'
