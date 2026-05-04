@@ -12,10 +12,8 @@ permissions:
 
 jobs:
 
-  # ==========================================
-  # Build allure-nginx only when changed
-  # ==========================================
-  # ==========================================
+ 
+# ==========================================
 # Build allure-nginx only when changed
 # ==========================================
   build-allure-nginx:
@@ -30,17 +28,21 @@ jobs:
           uses: actions/checkout@v4
           with:
             repository: tamahouse/orangehrm-traefik
+            ref: main
+            fetch-depth: 0
+            path: orangehrm-traefik
             token: ${{ secrets.GITHUB_TOKEN }}
 
         - name: Detect allure infra changes
           id: filter
           uses: dorny/paths-filter@v3
           with:
+            base: main
             filters: |
               allure:
-                - 'nginx/**'
-                - 'docker/allure-nginx/**'
-                - 'docker-compose.yml'
+                - 'orangehrm-traefik/nginx/**'
+                - 'orangehrm-traefik/docker/allure-nginx/**'
+                - 'orangehrm-traefik/docker-compose.yml'
 
         - name: Check allure-nginx image exists
           id: check_image
