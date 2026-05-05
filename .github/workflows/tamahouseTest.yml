@@ -101,7 +101,7 @@ jobs:
       fail-fast: false
 
       matrix:
-        browser: [chrome]
+        browser: [chrome,firefox]
 
     steps:
 
