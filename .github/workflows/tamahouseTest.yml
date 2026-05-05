@@ -77,8 +77,8 @@ jobs:
               sudo chmod 600 letsencrypt/acme.json
               export TAG=${{ steps.export_vars.outputs.TEMP_TAG }}
               sudo -E docker compose pull
-              sudo docker rm -f traefik || true
-              sudo docker compose up -d --force-recreate
+              sudo docker -E rm -f traefik || true
+              sudo docker -E compose up -d --force-recreate
 
 
   # ==========================================
@@ -98,7 +98,7 @@ jobs:
     steps:
 
       - name: Setup Java
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: "17"
