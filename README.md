@@ -1,53 +1,182 @@
-<img width="40%" alt='OrangeHRM' src='https://raw.githubusercontent.com/wiki/orangehrm/orangehrm/logos/logo.svg#gh-light-mode-only'/><img width="40%" alt='OrangeHRM' src='https://raw.githubusercontent.com/wiki/orangehrm/orangehrm/logos/logo_dark_mode.svg#gh-dark-mode-only'/>
+# OrangeHRM Demo for CI/CD Pipeline
 
-[![Docker Pulls](https://img.shields.io/docker/pulls/orangehrm/orangehrm.svg)](https://hub.docker.com/r/orangehrm/orangehrm) [![SourceForge Downloads](https://img.shields.io/sourceforge/dm/orangehrm.svg)](https://sourceforge.net/projects/orangehrm/) [![SourceForge Downloads](https://img.shields.io/sourceforge/dt/orangehrm.svg)](https://sourceforge.net/projects/orangehrm/)
+This repository is a fork of the official **OrangeHRM Starter Application** and is used as a demonstration project for building a complete CI/CD pipeline with automated testing.
 
-# OrangeHRM Starter Application
+The primary goal of this project is **not to develop new OrangeHRM features**, but to showcase how modern DevOps and QA Automation practices can work together to deliver software safely and automatically.
 
-OrangeHRM is a comprehensive Human Resource Management (HRM) System that captures all the essential functionalities required for any enterprise. Copyright (C) 2006 OrangeHRM Inc., http://www.orangehrm.com/
+The pipeline demonstrates:
 
-OrangeHRM is free software; you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation; either version 3 of the License, or (at your option) any later version.
+- 🐳 Docker image build
+- 🚀 Automatic deployment to a temporary environment
+- 🤖 Automated Selenium regression testing
+- 🌐 Cross-browser execution (Chrome & Firefox)
+- 📊 Allure Report generation
+- 📦 Automatic Docker image promotion
+- 🏷 Automatic Git version tagging
+- 🔄 Automatic rollback on test failures
 
-OrangeHRM is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+---
 
-## Getting started
+## Architecture
 
-- Download the latest version of OrangeHRM Starter [here](https://sourceforge.net/projects/orangehrm/files/latest/download).
+```mermaid
+flowchart TD
 
-- Prerequisites and environment set up for installing OrangeHRM Starter:
-  - [Install on Linux](https://starterhelp.orangehrm.com/hc/en-us/articles/6187572000540-Prerequisites-for-installing-OrangeHRM-Starter-in-Linux)
-  - [Install on Windows](https://starterhelp.orangehrm.com/hc/en-us/articles/6187576427804-Prerequisites-for-installing-OrangeHRM-Starter-in-Windows)
+    A[Developer] --> B[Merge to master]
+    B --> C[GitHub Actions]
 
-- Install OrangeHRM using the web installer:
-  - [OrangeHRM Starter Installation Guide](https://starterhelp.orangehrm.com/hc/en-us/articles/5295915003666-OrangeHRM-Starter-Installation-Guide)
-  - [OrangeHRM Starter Upgrade Guide](https://starterhelp.orangehrm.com/hc/en-us/articles/6937346912402-OrangeHRM-Starter-Upgrade-Guide-For-5x-versions-)
+    C --> D[Build Docker Image]
+    D --> E[Deploy Temporary Environment]
+    E --> F[Run Selenium Regression Tests]
 
-- For further information on how to use the product please refer to the User Guides, Tutorial videos, and FAQs available on [Help Portal](https://starterhelp.orangehrm.com)
+    F --> G1[Chrome]
+    F --> G2[Firefox]
 
-## OrangeHRM Mobile App
+    G1 --> H[Upload Allure Results]
+    G2 --> H
 
-<a href="https://play.google.com/store/apps/details?id=com.orangehrm.opensource" target="_blank">
-<img height="54" alt='Get it on Google Play'
-    src='https://raw.githubusercontent.com/wiki/orangehrm/orangehrm/mobile/play_store_cropped_en_US_2022_08_04.png'/>
-</a>
-<a href="https://apps.apple.com/us/app/orangehrm/id1527247547" target="_blank">
-<img height="54" alt='Download on the App Store'
-    src='https://raw.githubusercontent.com/wiki/orangehrm/orangehrm/mobile/app_store_en_US.svg'/>
-</a>
+    H --> I[Generate Allure Report]
 
-## Resources
+    I --> J{All Tests Passed?}
 
-### Demo
-Live demo is available at : https://opensource-demo.orangehrmlive.com
+    J -->|Yes| K[Promote Docker Image]
+    K --> L[Create Git Tag]
+    L --> M[Deploy Stable Version]
+    M --> N[(Production)]
 
-### Releases
-Sourceforge : https://sourceforge.net/p/orangehrm
+    J -->|No| O[Rollback to Stable]
+    O --> N
+```
+---
 
-### Website
-https://www.orangehrm.com/
+# CI/CD Workflow
 
-## Help & Support
-Submit your help requests through [OrangeHRM Help Portal](https://starterhelp.orangehrm.com/hc/en-us/requests/new) or Email to [ossupport@orangehrm.com](mailto:ossupport@orangehrm.com)
+The workflow is automatically triggered whenever code is pushed to the **master** branch.
 
-## License 
-GNU General Public License
+## 1. Build Docker Image
+
+- Checkout source code
+- Build a temporary Docker image tagged with the current Git commit SHA
+- Push the image to Docker Hub
+
+---
+
+## 2. Deploy Temporary Environment
+
+The temporary image is deployed to a VPS using Docker Compose.
+
+This environment is used exclusively for automated regression testing before the image is promoted.
+
+---
+
+## 3. Execute Regression Tests
+
+The workflow then:
+
+- Starts Selenium Standalone containers
+- Checks out the Selenium automation project
+- Executes the regression test suite
+- Runs tests in parallel on:
+  - Chrome
+  - Firefox
+- Collects Allure result files
+
+---
+
+## 4. Generate Test Reports
+
+After test execution, the pipeline automatically:
+
+- Uploads Allure result files to the VPS
+- Merges results from multiple browsers
+- Generates the latest Allure Report
+- Publishes the report for review
+
+### 📊 Live Allure Report
+
+https://chaseqa.duckdns.org/allure/
+
+The report includes:
+
+- Test execution summary
+- Passed / Failed statistics
+- Execution timeline
+- Failure screenshots
+- Logs and stack traces
+- Browser-specific execution results
+
+The report is automatically updated after every workflow execution.
+
+---
+
+## 5. Promote Release
+
+If all regression tests pass, the pipeline will:
+
+- Determine the next semantic version
+- Promote the temporary Docker image
+- Push:
+  - Version tag (`x.y.z`)
+  - `stable` tag
+- Create a Git tag
+- Deploy the new stable version
+
+---
+
+## 6. Automatic Rollback
+
+If any regression test fails, the pipeline will:
+
+- Skip image promotion
+- Keep the current stable version
+- Automatically redeploy the previous stable Docker image
+
+This ensures that only fully tested releases reach the stable environment.
+
+---
+
+# Technology Stack
+
+| Category | Technology |
+|----------|------------|
+| Application | OrangeHRM |
+| CI/CD | GitHub Actions |
+| Containerization | Docker, Docker Compose |
+| Test Automation | Selenium, TestNG, Rest-Assured |
+| Build Tool | Maven |
+| Reporting | Allure Report |
+| Browser Automation | Selenium Standalone |
+| Image Registry | Docker Hub |
+| Reverse Proxy | Traefik |
+| Deployment | SSH + VPS |
+
+---
+
+# Pipeline Highlights
+
+- ✅ Fully automated CI/CD pipeline
+- ✅ Temporary deployment before release
+- ✅ Cross-browser regression testing
+- ✅ Automatic Allure report generation
+- ✅ Automatic semantic versioning
+- ✅ Automatic Docker image promotion
+- ✅ Automatic Git tagging
+- ✅ Automatic rollback when tests fail
+
+---
+
+# Purpose
+
+This project serves as a practical reference implementation for integrating QA Automation into a modern CI/CD pipeline.
+
+It demonstrates how automated testing can become a deployment gate, ensuring that only verified application versions are promoted to production.
+
+This repository is intended for learning, experimentation, and showcasing best practices in:
+
+- Continuous Integration (CI)
+- Continuous Testing (CT)
+- Continuous Delivery (CD)
+- Automated Regression Testing
+- Docker-based Deployment
+- Test Reporting
+- Release Automation
